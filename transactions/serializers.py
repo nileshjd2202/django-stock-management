@@ -7,14 +7,6 @@ class TransactionSerializer(serializers.ModelSerializer):
         model = Transaction
         fields = '__all__'
 
-    def validate_transaction_type(self, value):
-        """
-        Validates the transaction type.
-        """
-        if value not in TradeType.values:
-            raise serializers.ValidationError("Invalid transaction type. Must be BUY, SELL, or SPLIT.")
-        return value
-
     def validate(self, attrs):
         """
         Validates the transaction data, for SELL transactions.
