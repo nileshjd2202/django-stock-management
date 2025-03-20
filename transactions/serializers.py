@@ -1,4 +1,7 @@
+from django.db.models import Sum,Q
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from .models import Transaction, TradeType
 
 
@@ -12,29 +15,32 @@ class TransactionSerializer(serializers.ModelSerializer):
         Validates the transaction data, for SELL transactions.
         Ensures that the quantity being sold is not greater than the current holdings.
         """
-        transaction_type = attrs.get('transaction_type')
+        trade_type = attrs.get('trade_type')
         quantity = attrs.get('quantity')
         company = attrs.get('company')
-        date = attrs.get('date')  # Added date to filter
+        trade_date = attrs.get('trade_date')  # Added date to filter
 
-        if transaction_type == TradeType.SELL:
+        if trade_type == TradeType.SELL:
             # Calculate current holdings for the company before applying the new transaction
-            current_holdings = Transaction.objects.filter(company=company, date__lte=date).aggregate(
-                total_buy=Sum('quantity', filter=models.Q(transaction_type=TradeType.BUY)),
-                total_sell=Sum('quantity', filter=models.Q(transaction_type=TradeType.SELL))
+            current_holdings = Transaction.objects.filter(company=company, trade_date__lte=trade_date).aggregate(
+                total_buy=Sum('quantity', filter=Q(trade_type=TradeType.BUY)),
+                total_sell=Sum('quantity', filter=Q(trade_type=TradeType.SELL))
             )
             total_buy = current_holdings['total_buy'] or 0
             total_sell = current_holdings['total_sell'] or 0
             available_quantity = total_buy - total_sell
 
             if quantity > available_quantity:
-                raise ValidationError(
-                    f"Not enough shares to sell. Available: {available_quantity}, Requested: {quantity}")
+                raise ValidationError({
+                    "quantity": f"Not enough shares to sell. Available: {available_quantity}, Requested: {quantity}"
+                })
 
-        if transaction_type == TradeType.SPLIT:
+        if trade_type == TradeType.SPLIT:
             split_ratio = attrs.get('split_ratio')
             ratio_list = split_ratio.split(':')
             if len(ratio_list) != 2:
-                raise ValidationError('Invalid split ratio format. Please use the format "X:Y", e.g., "1:2".')
+                raise ValidationError({
+                    "split ratio": "Invalid split ratio format. Please use the format 'X:Y', e.g., '1:2'."
+                })
 
         return attrs
