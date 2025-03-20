@@ -1,5 +1,6 @@
 # Python-related files
-__pycache__/
+stock_market/__pycache__/
+transactions/__pycache__/
 *.pyc
 *.pyo
 *.pyd
